@@ -1,157 +1,129 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="UTF-8">
 <title>FilmLedger</title>
 
 <style>
-
-body {
-font-family: Arial;
-background:#f4f4f4;
-margin:40px;
-}
-
-h1{
-text-align:center;
-}
-
-table{
-width:100%;
-border-collapse:collapse;
-background:white;
-}
-
-th,td{
-padding:10px;
-border-bottom:1px solid #ddd;
-}
-
-th{
-background:#222;
-color:white;
-}
-
-tr:hover{
-background:#f0f0f0;
-}
-
-.searchBox{
-width:300px;
-padding:10px;
-margin-bottom:20px;
-font-size:16px;
-}
-
+  body{font-family:Arial;background:#f4f4f4;margin:30px;}
+  h1{text-align:center;}
+  .slideshow{text-align:center;margin-bottom:30px;}
+  .slideshow img{height:300px;border-radius:10px;box-shadow:0 0 10px #ccc;}
+  button{padding:10px 20px;margin:10px;}
+  table{width:100%;border-collapse:collapse;background:white;}
+  th{background:black;color:white;padding:10px;text-align:left;}
+  td{padding:10px;border-bottom:1px solid #ddd;vertical-align:top;}
+  .poster{height:120px;border-radius:8px;}
 </style>
-
 </head>
 
 <body>
+<h1>FilmLedger</h1>
 
-<h1>FilmLedger Movie Database</h1>
+<div class="slideshow">
+  <h2 id="title">Loading...</h2>
+  <img id="poster" alt="Movie poster">
+  <br>
+  <button onclick="prev()">Prev</button>
+  <button onclick="next()">Next</button>
+</div>
 
-<input 
-class="searchBox"
-id="search"
-placeholder="Search movies..."
-onkeyup="searchMovies()"
-/>
-
-<table id="moviesTable">
-
-<thead>
-
-<tr>
-<th>Title</th>
-<th>Release Date</th>
-<th>Genres</th>
-<th>Rating</th>
-<th>Description</th>
-</tr>
-
-</thead>
-
-<tbody>
-
-</tbody>
-
+<table>
+  <tr>
+    <th>Poster</th>
+    <th>Title</th>
+    <th>Release</th>
+    <th>Genres</th>
+    <th>Rating</th>
+    <th>Description</th>
+  </tr>
+  <tbody id="movies"></tbody>
 </table>
 
 <script>
+  const URL = "https://njacnizuppgxlcroosva.supabase.co";
+  const KEY = "sb_publishable_pmSNF4okxKfphB1Rr19Q0w_n550JOla";
+  const VIEW = "movies_gui";
 
-const SUPABASE_URL =
-"https://njacnizuppgxlcroosva.supabase.co";
+  const TMDB_BASE = "https://image.tmdb.org/t/p/w500";
+  const FALLBACK_POSTER = "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="400" height="600">
+      <rect width="100%" height="100%" fill="#e6e6e6"/>
+      <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
+            font-family="Arial" font-size="28" fill="#777">No Poster</text>
+    </svg>
+  `);
 
-const API_KEY =
-"sb_publishable_pmSNF4okxKfphB1Rr19Q0w_n550JOla";
+  let movies = [];
+  let index = 0;
 
-async function loadMovies(){
+  function posterUrl(path){
+    if(!path) return FALLBACK_POSTER;
+    if(String(path).startsWith("http")) return path; // just in case
+    return TMDB_BASE + path; // normal "/abc.jpg"
+  }
 
-const response = await fetch(
-SUPABASE_URL +
-"/rest/v1/movies_gui?select=*",
-{
-headers:{
-apikey:API_KEY
-}
-});
+  function fmtRating(r){
+    const n = Number(r);
+    return Number.isFinite(n) ? n.toFixed(1) : "—";
+  }
 
-const data = await response.json();
+  fetch(`${URL}/rest/v1/${VIEW}?select=*`, {
+    headers: {
+      apikey: KEY,
+      Authorization: "Bearer " + KEY,
+      Accept: "application/json"
+    }
+  })
+  .then(r => r.ok ? r.json() : r.text().then(t => Promise.reject(t)))
+  .then(data => {
+    movies = Array.isArray(data) ? data : [];
+    if(!movies.length){
+      document.getElementById("title").textContent = "No movies returned";
+      document.getElementById("poster").src = FALLBACK_POSTER;
+      return;
+    }
+    showSlide();
+    buildTable();
+  })
+  .catch(err => {
+    document.getElementById("title").textContent = "Error loading movies";
+    console.log("Supabase error:", err);
+    alert("Supabase error. Open Console (F12) and check logs.");
+  });
 
-displayMovies(data);
+  function showSlide(){
+    const m = movies[index];
+    document.getElementById("title").textContent = m.title || "—";
+    document.getElementById("poster").src = posterUrl(m.poster_path);
+  }
 
-window.movies=data;
+  function next(){
+    index = (index + 1) % movies.length;
+    showSlide();
+  }
 
-}
+  function prev(){
+    index = (index - 1 + movies.length) % movies.length;
+    showSlide();
+  }
 
-function displayMovies(movies){
-
-const table=document.querySelector("tbody");
-
-table.innerHTML="";
-
-movies.forEach(movie=>{
-
-const row=`
-<tr>
-
-<td>${movie.title}</td>
-
-<td>${movie.release_date}</td>
-
-<td>${movie.genres}</td>
-
-<td>${movie.rating}</td>
-
-<td>${movie.description}</td>
-
-</tr>
-`;
-
-table.innerHTML+=row;
-
-});
-
-}
-
-function searchMovies(){
-
-const text=
-document.getElementById("search")
-.value
-.toLowerCase();
-
-const filtered=
-window.movies.filter(m=>
-m.title.toLowerCase().includes(text)
-);
-
-displayMovies(filtered);
-
-}
-
-loadMovies();
-
+  function buildTable(){
+    let html = "";
+    movies.forEach(m => {
+      html += `
+        <tr>
+          <td><img class="poster" src="${posterUrl(m.poster_path)}" alt="${(m.title||"Movie")} poster"></td>
+          <td>${m.title || "—"}</td>
+          <td>${m.release_date || "—"}</td>
+          <td>${m.genres || "—"}</td>
+          <td>${fmtRating(m.rating)}</td>
+          <td>${m.description || "—"}</td>
+        </tr>
+      `;
+    });
+    document.getElementById("movies").innerHTML = html;
+  }
 </script>
 
 </body>
