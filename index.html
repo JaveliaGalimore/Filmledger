@@ -1,264 +1,392 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>FilmLedger</title>
 
 <style>
+  body{
+    margin:0;
+    font-family:Arial, Helvetica, sans-serif;
+    background:#111;
+    color:white;
+  }
 
-body{
-margin:0;
-font-family:Arial, Helvetica, sans-serif;
-background:#111;
-color:white;
-}
+  /* NAVBAR */
+  .navbar{
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:18px 60px;
+    background:rgba(0,0,0,.85);
+    backdrop-filter: blur(8px);
+    z-index:1000;
+    box-sizing:border-box;
+  }
+  .logo{
+    font-size:26px;
+    font-weight:bold;
+    letter-spacing:2px;
+    color:#e50914;
+  }
+  .nav-right{
+    display:flex;
+    align-items:center;
+    gap:14px;
+  }
+  .lang-btn{
+    background:transparent;
+    border:1px solid #aaa;
+    color:white;
+    padding:7px 12px;
+    border-radius:6px;
+    cursor:pointer;
+  }
+  .signin{
+    color:white;
+    text-decoration:none;
+    font-size:14px;
+    opacity:.9;
+  }
+  .signin:hover{ opacity:1; }
+  .watch-btn{
+    background:#e50914;
+    border:none;
+    color:white;
+    padding:9px 16px;
+    border-radius:6px;
+    cursor:pointer;
+    font-weight:bold;
+  }
+  .watch-btn:hover{ background:#ff1f2f; }
 
-/* HERO SLIDESHOW */
+  /* HERO SLIDESHOW */
+  .hero{
+    position:relative;
+    height:82vh;
+    display:flex;
+    align-items:center;
+    padding:110px 60px 60px; /* room for navbar */
+    background-size:cover;
+    background-position:center;
+    transition:all .5s ease;
+    box-sizing:border-box;
+  }
+  .overlay{
+    position:absolute;
+    top:0; left:0;
+    width:100%; height:100%;
+    background:linear-gradient(to right, rgba(0,0,0,.90) 42%, rgba(0,0,0,.20));
+  }
+  .hero-content{
+    position:relative;
+    z-index:2;
+    max-width:650px;
+  }
+  .hero h1{
+    font-size:52px;
+    margin:0 0 10px;
+    line-height:1.05;
+  }
+  .meta{
+    opacity:.85;
+    margin-bottom:14px;
+    font-size:15px;
+  }
+  .rating{
+    color:#ffd700;
+    font-size:20px;
+    margin-bottom:14px;
+  }
+  .description{
+    line-height:1.6;
+    opacity:.92;
+    margin-bottom:18px;
+    font-size:15px;
+  }
 
-.hero{
-position:relative;
-height:80vh;
-display:flex;
-align-items:center;
-padding:60px;
-background-size:cover;
-background-position:center;
-transition:all .5s ease;
-}
+  .hero-poster{
+    position:absolute;
+    right:70px;
+    height:440px;
+    width:auto;
+    border-radius:16px;
+    box-shadow:0 0 50px rgba(0,0,0,.65);
+    z-index:2;
+    border:1px solid rgba(255,255,255,.08);
+    background:#222;
+  }
 
-.overlay{
-position:absolute;
-top:0;
-left:0;
-width:100%;
-height:100%;
-background:linear-gradient(to right, rgba(0,0,0,.85) 40%, rgba(0,0,0,.3));
-}
+  /* HERO CONTROLS */
+  .controls{
+    margin-top:10px;
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .btn{
+    background:#e50914;
+    border:none;
+    padding:12px 18px;
+    color:white;
+    border-radius:8px;
+    cursor:pointer;
+    font-weight:bold;
+  }
+  .btn:hover{ background:#ff1f2f; }
+  .btn.secondary{
+    background:rgba(255,255,255,.12);
+    border:1px solid rgba(255,255,255,.18);
+  }
+  .btn.secondary:hover{
+    background:rgba(255,255,255,.18);
+  }
 
-.hero-content{
-position:relative;
-z-index:2;
-max-width:600px;
-}
+  /* TABLE */
+  .table-section{
+    background:#fff;
+    color:#000;
+    padding:40px 60px 60px;
+  }
+  .table-section h2{
+    margin:0 0 18px;
+    font-size:24px;
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+  }
+  th{
+    background:#111;
+    color:white;
+    padding:12px;
+    text-align:left;
+    position:sticky;
+    top:0;
+  }
+  td{
+    padding:12px;
+    border-bottom:1px solid #ddd;
+    vertical-align:top;
+    font-size:14px;
+  }
+  tr:hover td{ background:#f6f6f6; }
+  .poster-small{
+    height:120px;
+    border-radius:10px;
+    border:1px solid #ddd;
+    background:#eee;
+  }
 
-.hero h1{
-font-size:48px;
-margin-bottom:10px;
-}
+  /* ERROR BOX */
+  .error{
+    max-width:1100px;
+    margin:20px auto 0;
+    background:#2a0005;
+    border:1px solid #ff7a86;
+    color:#ffd6da;
+    padding:12px 14px;
+    border-radius:10px;
+    display:none;
+    white-space:pre-wrap;
+  }
 
-.meta{
-opacity:.8;
-margin-bottom:15px;
-}
-
-.rating{
-color:#ffd700;
-font-size:20px;
-margin-bottom:15px;
-}
-
-.description{
-line-height:1.6;
-opacity:.9;
-margin-bottom:20px;
-}
-
-.hero img{
-position:absolute;
-right:80px;
-height:420px;
-border-radius:15px;
-box-shadow:0 0 40px rgba(0,0,0,.6);
-z-index:2;
-}
-
-/* BUTTONS */
-
-.controls{
-margin-top:20px;
-}
-
-button{
-background:#e50914;
-border:none;
-padding:12px 20px;
-color:white;
-border-radius:5px;
-cursor:pointer;
-margin-right:10px;
-}
-
-button:hover{
-background:#ff1f2f;
-}
-
-/* TABLE */
-
-.table-section{
-background:#fff;
-color:#000;
-padding:40px;
-}
-
-table{
-width:100%;
-border-collapse:collapse;
-}
-
-th{
-background:#000;
-color:white;
-padding:12px;
-text-align:left;
-}
-
-td{
-padding:12px;
-border-bottom:1px solid #ddd;
-vertical-align:top;
-}
-
-.poster-small{
-height:120px;
-border-radius:8px;
-}
-
+  @media (max-width: 900px){
+    .hero{ padding:110px 24px 50px; }
+    .hero-poster{ display:none; }
+    .navbar{ padding:16px 20px; }
+    .table-section{ padding:30px 20px 50px; }
+  }
 </style>
 </head>
 
 <body>
 
+<header class="navbar">
+  <div class="logo">FILMLEDGER</div>
+  <div class="nav-right">
+    <button class="lang-btn">EN</button>
+    <a class="signin" href="signin.html">Sign In</a>
+    <button class="watch-btn" onclick="location.href='signin.html'">Watch Now</button>
+  </div>
+</header>
+
+<div id="errorBox" class="error"></div>
+
 <div class="hero" id="hero">
+  <div class="overlay"></div>
 
-<div class="overlay"></div>
+  <div class="hero-content">
+    <h1 id="title">Loading…</h1>
+    <div class="meta" id="meta"></div>
+    <div class="rating" id="rating"></div>
+    <div class="description" id="description"></div>
 
-<div class="hero-content">
-<h1 id="title">Loading...</h1>
+    <div class="controls">
+      <button class="btn secondary" onclick="prev()">◀ Prev</button>
+      <button class="btn" id="autoBtn" onclick="toggleAuto()">▶ Auto</button>
+      <button class="btn secondary" onclick="next()">Next ▶</button>
+    </div>
+  </div>
 
-<div class="meta" id="meta"></div>
-
-<div class="rating" id="rating"></div>
-
-<div class="description" id="description"></div>
-
-<div class="controls">
-<button onclick="prev()">Prev</button>
-<button onclick="next()">Next</button>
+  <img id="poster" class="hero-poster" alt="Movie poster" />
 </div>
-</div>
-
-<img id="poster">
-
-</div>
-
 
 <div class="table-section">
-
-<h2>All Movies</h2>
-
-<table>
-<tr>
-<th>Poster</th>
-<th>Title</th>
-<th>Release</th>
-<th>Genres</th>
-<th>Rating</th>
-<th>Description</th>
-</tr>
-
-<tbody id="movies"></tbody>
-
-</table>
-
+  <h2>All Movies</h2>
+  <table>
+    <tr>
+      <th>Poster</th>
+      <th>Title</th>
+      <th>Release</th>
+      <th>Genres</th>
+      <th>Rating</th>
+      <th>Description</th>
+    </tr>
+    <tbody id="movies"></tbody>
+  </table>
 </div>
 
 <script>
+  const SUPABASE_URL = "https://njacnizuppgxlcroosva.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_pmSNF4okxKfphB1Rr19Q0w_n550JOla"; // your key
+  const VIEW = "movies_gui";
 
-const URL="https://njacnizuppgxlcroosva.supabase.co";
-const KEY="sb_publishable_pmSNF4okxKfphB1Rr19Q0w_n550JOla";
+  // If poster_path is stored as "/abc.jpg", we must build a full URL:
+  const TMDB_IMG_BASE = "https://image.tmdb.org/t/p/w500";
 
-let movies=[];
-let index=0;
+  let movies = [];
+  let index = 0;
+  let auto = false;
+  let timer = null;
 
-fetch(URL+"/rest/v1/movies_gui?select=*",{
-headers:{
-apikey:KEY,
-Authorization:"Bearer "+KEY
-}
-})
-.then(r=>r.json())
-.then(data=>{
-movies=data;
-showSlide();
-buildTable();
-});
+  function showError(msg){
+    const box = document.getElementById("errorBox");
+    box.style.display = "block";
+    box.textContent = msg;
+  }
+  function clearError(){
+    const box = document.getElementById("errorBox");
+    box.style.display = "none";
+    box.textContent = "";
+  }
 
-function stars(r){
-let s="";
-for(let i=0;i<Math.round(r);i++) s+="★";
-return s;
-}
+  function posterUrl(path){
+    if (!path) return "";
+    path = String(path).trim();
+    // if already a full URL (like media.themoviedb.org...), use it
+    if (path.startsWith("http://") || path.startsWith("https://")) return path;
+    // normal TMDB stored path like "/abc.jpg"
+    if (path.startsWith("/")) return TMDB_IMG_BASE + path;
+    // if missing leading slash, add it
+    return TMDB_IMG_BASE + "/" + path;
+  }
 
-function showSlide(){
+  function stars(r){
+    const n = Math.round(Number(r) || 0);
+    return "★".repeat(Math.max(0, n));
+  }
 
-let m=movies[index];
+  async function loadMovies(){
+    clearError();
+    try{
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/${VIEW}?select=*`, {
+        headers:{
+          apikey: SUPABASE_KEY,
+          Authorization: "Bearer " + SUPABASE_KEY
+        }
+      });
 
-document.getElementById("title").innerHTML=m.title;
+      if(!res.ok){
+        const txt = await res.text();
+        throw new Error(`Supabase REST failed (${res.status}).\n\n${txt}\n\nFix:\n- Make sure your key is valid for REST.\n- RLS should be disabled OR allow anon read.\n- The view name must be movies_gui.`);
+      }
 
-let year = m.release_date ? m.release_date.substring(0,4) : "";
+      movies = await res.json();
+      if(!Array.isArray(movies) || movies.length === 0){
+        throw new Error("No rows returned from movies_gui. Check your view + data.");
+      }
 
-document.getElementById("meta").innerHTML =
-year + " • " + (m.genres || "");
+      // Optional: sort by rating desc at start
+      movies.sort((a,b) => Number(b.rating||0) - Number(a.rating||0));
 
-document.getElementById("rating").innerHTML =
-stars(m.rating) + " (" + Number(m.rating).toFixed(1) + ")";
+      showSlide();
+      buildTable();
+    }catch(e){
+      showError(e.message);
+    }
+  }
 
-document.getElementById("description").innerHTML =
-m.description || "";
+  function showSlide(){
+    if(!movies.length) return;
 
-document.getElementById("poster").src =
-m.poster_path;
+    const m = movies[index];
+    const year = m.release_date ? String(m.release_date).substring(0,4) : "—";
+    const img = posterUrl(m.poster_path);
 
-document.getElementById("hero").style.backgroundImage =
-"linear-gradient(to right, rgba(0,0,0,.9), rgba(0,0,0,.3)), url("+m.poster_path+")";
+    document.getElementById("title").textContent = m.title || "—";
+    document.getElementById("meta").textContent = `${year} • ${m.genres || "—"}`;
+    document.getElementById("rating").textContent = `${stars(m.rating)} (${Number(m.rating||0).toFixed(1)})`;
+    document.getElementById("description").textContent = m.description || "—";
 
-}
+    document.getElementById("poster").src = img;
 
-function next(){
-index++;
-if(index>=movies.length)index=0;
-showSlide();
-}
+    // Set hero background image (use poster too)
+    document.getElementById("hero").style.backgroundImage =
+      `linear-gradient(to right, rgba(0,0,0,.92), rgba(0,0,0,.25)), url('${img}')`;
+  }
 
-function prev(){
-index--;
-if(index<0)index=movies.length-1;
-showSlide();
-}
+  function next(){
+    if(!movies.length) return;
+    index = (index + 1) % movies.length;
+    showSlide();
+  }
 
-function buildTable(){
+  function prev(){
+    if(!movies.length) return;
+    index = (index - 1 + movies.length) % movies.length;
+    showSlide();
+  }
 
-let html="";
+  function toggleAuto(){
+    auto = !auto;
+    const btn = document.getElementById("autoBtn");
+    btn.textContent = auto ? "⏸ Pause" : "▶ Auto";
 
-movies.forEach(m=>{
+    if(auto){
+      timer = setInterval(next, 3500);
+    }else{
+      clearInterval(timer);
+      timer = null;
+    }
+  }
 
-html+=`
-<tr>
-<td><img class="poster-small" src="${m.poster_path}"></td>
-<td>${m.title}</td>
-<td>${m.release_date}</td>
-<td>${m.genres}</td>
-<td>${Number(m.rating).toFixed(1)}</td>
-<td>${m.description}</td>
-</tr>
-`;
+  function buildTable(){
+    let html = "";
 
-});
+    movies.forEach(m => {
+      const img = posterUrl(m.poster_path);
+      html += `
+        <tr>
+          <td><img class="poster-small" src="${img}" alt="${m.title || "poster"}"></td>
+          <td>${m.title || "—"}</td>
+          <td>${m.release_date || "—"}</td>
+          <td>${m.genres || "—"}</td>
+          <td>${Number(m.rating || 0).toFixed(1)}</td>
+          <td>${m.description || "—"}</td>
+        </tr>
+      `;
+    });
 
-document.getElementById("movies").innerHTML=html;
+    document.getElementById("movies").innerHTML = html;
+  }
 
-}
-
+  loadMovies();
 </script>
 
 </body>
