@@ -5,125 +5,260 @@
 <title>FilmLedger</title>
 
 <style>
-  body{font-family:Arial;background:#f4f4f4;margin:30px;}
-  h1{text-align:center;}
-  .slideshow{text-align:center;margin-bottom:30px;}
-  .slideshow img{height:300px;border-radius:10px;box-shadow:0 0 10px #ccc;}
-  button{padding:10px 20px;margin:10px;}
-  table{width:100%;border-collapse:collapse;background:white;}
-  th{background:black;color:white;padding:10px;text-align:left;}
-  td{padding:10px;border-bottom:1px solid #ddd;vertical-align:top;}
-  .poster{height:120px;border-radius:8px;}
+
+body{
+margin:0;
+font-family:Arial, Helvetica, sans-serif;
+background:#111;
+color:white;
+}
+
+/* HERO SLIDESHOW */
+
+.hero{
+position:relative;
+height:80vh;
+display:flex;
+align-items:center;
+padding:60px;
+background-size:cover;
+background-position:center;
+transition:all .5s ease;
+}
+
+.overlay{
+position:absolute;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:linear-gradient(to right, rgba(0,0,0,.85) 40%, rgba(0,0,0,.3));
+}
+
+.hero-content{
+position:relative;
+z-index:2;
+max-width:600px;
+}
+
+.hero h1{
+font-size:48px;
+margin-bottom:10px;
+}
+
+.meta{
+opacity:.8;
+margin-bottom:15px;
+}
+
+.rating{
+color:#ffd700;
+font-size:20px;
+margin-bottom:15px;
+}
+
+.description{
+line-height:1.6;
+opacity:.9;
+margin-bottom:20px;
+}
+
+.hero img{
+position:absolute;
+right:80px;
+height:420px;
+border-radius:15px;
+box-shadow:0 0 40px rgba(0,0,0,.6);
+z-index:2;
+}
+
+/* BUTTONS */
+
+.controls{
+margin-top:20px;
+}
+
+button{
+background:#e50914;
+border:none;
+padding:12px 20px;
+color:white;
+border-radius:5px;
+cursor:pointer;
+margin-right:10px;
+}
+
+button:hover{
+background:#ff1f2f;
+}
+
+/* TABLE */
+
+.table-section{
+background:#fff;
+color:#000;
+padding:40px;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+}
+
+th{
+background:#000;
+color:white;
+padding:12px;
+text-align:left;
+}
+
+td{
+padding:12px;
+border-bottom:1px solid #ddd;
+vertical-align:top;
+}
+
+.poster-small{
+height:120px;
+border-radius:8px;
+}
+
 </style>
 </head>
 
 <body>
-<h1>FilmLedger</h1>
 
-<div class="slideshow">
-  <h2 id="title">Loading...</h2>
-  <img id="poster" alt="Movie poster">
-  <br>
-  <button onclick="prev()">Prev</button>
-  <button onclick="next()">Next</button>
+<div class="hero" id="hero">
+
+<div class="overlay"></div>
+
+<div class="hero-content">
+<h1 id="title">Loading...</h1>
+
+<div class="meta" id="meta"></div>
+
+<div class="rating" id="rating"></div>
+
+<div class="description" id="description"></div>
+
+<div class="controls">
+<button onclick="prev()">Prev</button>
+<button onclick="next()">Next</button>
+</div>
 </div>
 
+<img id="poster">
+
+</div>
+
+
+<div class="table-section">
+
+<h2>All Movies</h2>
+
 <table>
-  <tr>
-    <th>Poster</th>
-    <th>Title</th>
-    <th>Release</th>
-    <th>Genres</th>
-    <th>Rating</th>
-    <th>Description</th>
-  </tr>
-  <tbody id="movies"></tbody>
+<tr>
+<th>Poster</th>
+<th>Title</th>
+<th>Release</th>
+<th>Genres</th>
+<th>Rating</th>
+<th>Description</th>
+</tr>
+
+<tbody id="movies"></tbody>
+
 </table>
 
+</div>
+
 <script>
-  const URL = "https://njacnizuppgxlcroosva.supabase.co";
-  const KEY = "sb_publishable_pmSNF4okxKfphB1Rr19Q0w_n550JOla";
-  const VIEW = "movies_gui";
 
-  const TMDB_BASE = "https://image.tmdb.org/t/p/w500";
-  const FALLBACK_POSTER = "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="400" height="600">
-      <rect width="100%" height="100%" fill="#e6e6e6"/>
-      <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
-            font-family="Arial" font-size="28" fill="#777">No Poster</text>
-    </svg>
-  `);
+const URL="https://njacnizuppgxlcroosva.supabase.co";
+const KEY="sb_publishable_pmSNF4okxKfphB1Rr19Q0w_n550JOla";
 
-  let movies = [];
-  let index = 0;
+let movies=[];
+let index=0;
 
-  function posterUrl(path){
-    if(!path) return FALLBACK_POSTER;
-    if(String(path).startsWith("http")) return path; // just in case
-    return TMDB_BASE + path; // normal "/abc.jpg"
-  }
+fetch(URL+"/rest/v1/movies_gui?select=*",{
+headers:{
+apikey:KEY,
+Authorization:"Bearer "+KEY
+}
+})
+.then(r=>r.json())
+.then(data=>{
+movies=data;
+showSlide();
+buildTable();
+});
 
-  function fmtRating(r){
-    const n = Number(r);
-    return Number.isFinite(n) ? n.toFixed(1) : "—";
-  }
+function stars(r){
+let s="";
+for(let i=0;i<Math.round(r);i++) s+="★";
+return s;
+}
 
-  fetch(`${URL}/rest/v1/${VIEW}?select=*`, {
-    headers: {
-      apikey: KEY,
-      Authorization: "Bearer " + KEY,
-      Accept: "application/json"
-    }
-  })
-  .then(r => r.ok ? r.json() : r.text().then(t => Promise.reject(t)))
-  .then(data => {
-    movies = Array.isArray(data) ? data : [];
-    if(!movies.length){
-      document.getElementById("title").textContent = "No movies returned";
-      document.getElementById("poster").src = FALLBACK_POSTER;
-      return;
-    }
-    showSlide();
-    buildTable();
-  })
-  .catch(err => {
-    document.getElementById("title").textContent = "Error loading movies";
-    console.log("Supabase error:", err);
-    alert("Supabase error. Open Console (F12) and check logs.");
-  });
+function showSlide(){
 
-  function showSlide(){
-    const m = movies[index];
-    document.getElementById("title").textContent = m.title || "—";
-    document.getElementById("poster").src = posterUrl(m.poster_path);
-  }
+let m=movies[index];
 
-  function next(){
-    index = (index + 1) % movies.length;
-    showSlide();
-  }
+document.getElementById("title").innerHTML=m.title;
 
-  function prev(){
-    index = (index - 1 + movies.length) % movies.length;
-    showSlide();
-  }
+let year = m.release_date ? m.release_date.substring(0,4) : "";
 
-  function buildTable(){
-    let html = "";
-    movies.forEach(m => {
-      html += `
-        <tr>
-          <td><img class="poster" src="${posterUrl(m.poster_path)}" alt="${(m.title||"Movie")} poster"></td>
-          <td>${m.title || "—"}</td>
-          <td>${m.release_date || "—"}</td>
-          <td>${m.genres || "—"}</td>
-          <td>${fmtRating(m.rating)}</td>
-          <td>${m.description || "—"}</td>
-        </tr>
-      `;
-    });
-    document.getElementById("movies").innerHTML = html;
-  }
+document.getElementById("meta").innerHTML =
+year + " • " + (m.genres || "");
+
+document.getElementById("rating").innerHTML =
+stars(m.rating) + " (" + Number(m.rating).toFixed(1) + ")";
+
+document.getElementById("description").innerHTML =
+m.description || "";
+
+document.getElementById("poster").src =
+m.poster_path;
+
+document.getElementById("hero").style.backgroundImage =
+"linear-gradient(to right, rgba(0,0,0,.9), rgba(0,0,0,.3)), url("+m.poster_path+")";
+
+}
+
+function next(){
+index++;
+if(index>=movies.length)index=0;
+showSlide();
+}
+
+function prev(){
+index--;
+if(index<0)index=movies.length-1;
+showSlide();
+}
+
+function buildTable(){
+
+let html="";
+
+movies.forEach(m=>{
+
+html+=`
+<tr>
+<td><img class="poster-small" src="${m.poster_path}"></td>
+<td>${m.title}</td>
+<td>${m.release_date}</td>
+<td>${m.genres}</td>
+<td>${Number(m.rating).toFixed(1)}</td>
+<td>${m.description}</td>
+</tr>
+`;
+
+});
+
+document.getElementById("movies").innerHTML=html;
+
+}
+
 </script>
 
 </body>
