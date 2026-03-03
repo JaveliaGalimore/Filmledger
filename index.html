@@ -147,6 +147,44 @@
     background:rgba(255,255,255,.18);
   }
 
+  /* FILTER BAR */
+  .filter-bar{
+    margin-top:-34px;
+    padding:0 60px 30px;
+    box-sizing:border-box;
+  }
+  .filter-card{
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+    align-items:center;
+    background:rgba(0,0,0,.70);
+    border:1px solid rgba(255,255,255,.10);
+    border-radius:14px;
+    padding:14px;
+    backdrop-filter: blur(10px);
+  }
+  .filter-card input,
+  .filter-card select{
+    padding:11px 12px;
+    border-radius:10px;
+    border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.06);
+    color:white;
+    font-size:14px;
+    outline:none;
+    min-width: 200px;
+  }
+  .filter-card input::placeholder{
+    color: rgba(255,255,255,.55);
+  }
+  .count{
+    margin-left:auto;
+    opacity:.8;
+    font-size:13px;
+    padding:0 6px;
+  }
+
   /* TABLE */
   .table-section{
     background:#fff;
@@ -200,7 +238,10 @@
     .hero{ padding:110px 24px 50px; }
     .hero-poster{ display:none; }
     .navbar{ padding:16px 20px; }
+    .filter-bar{ padding:0 20px 24px; }
     .table-section{ padding:30px 20px 50px; }
+    .count{ margin-left:0; width:100%; }
+    .filter-card input, .filter-card select{ min-width: 100%; }
   }
 </style>
 </head>
@@ -229,12 +270,34 @@
 
     <div class="controls">
       <button class="btn secondary" onclick="prev()">◀ Prev</button>
-      <button class="btn" id="autoBtn" onclick="toggleAuto()">▶ Auto</button>
+      <!-- ✅ Auto button REMOVED -->
       <button class="btn secondary" onclick="next()">Next ▶</button>
     </div>
   </div>
 
   <img id="poster" class="hero-poster" alt="Movie poster" />
+</div>
+
+<!-- ✅ FILTERS / SEARCH -->
+<div class="filter-bar">
+  <div class="filter-card">
+    <input id="searchInput" type="text" placeholder="Search title, genre, description…" />
+    <select id="genreSelect">
+      <option value="">All Genres</option>
+    </select>
+    <select id="yearSelect">
+      <option value="">All Years</option>
+    </select>
+    <select id="sortSelect">
+      <option value="rating_desc">Sort: Rating (High → Low)</option>
+      <option value="rating_asc">Sort: Rating (Low → High)</option>
+      <option value="date_desc">Sort: Release Date (New → Old)</option>
+      <option value="date_asc">Sort: Release Date (Old → New)</option>
+      <option value="title_asc">Sort: Title (A → Z)</option>
+      <option value="title_desc">Sort: Title (Z → A)</option>
+    </select>
+    <div class="count" id="countText">Loading…</div>
+  </div>
 </div>
 
 <div class="table-section">
@@ -257,13 +320,11 @@
   const SUPABASE_KEY = "sb_publishable_pmSNF4okxKfphB1Rr19Q0w_n550JOla"; // your key
   const VIEW = "movies_gui";
 
-  // If poster_path is stored as "/abc.jpg", we must build a full URL:
   const TMDB_IMG_BASE = "https://image.tmdb.org/t/p/w500";
 
-  let movies = [];
+  let allMovies = [];
+  let movies = [];      // filtered list used by slideshow + table
   let index = 0;
-  let auto = false;
-  let timer = null;
 
   function showError(msg){
     const box = document.getElementById("errorBox");
@@ -279,17 +340,19 @@
   function posterUrl(path){
     if (!path) return "";
     path = String(path).trim();
-    // if already a full URL (like media.themoviedb.org...), use it
     if (path.startsWith("http://") || path.startsWith("https://")) return path;
-    // normal TMDB stored path like "/abc.jpg"
     if (path.startsWith("/")) return TMDB_IMG_BASE + path;
-    // if missing leading slash, add it
     return TMDB_IMG_BASE + "/" + path;
   }
 
   function stars(r){
     const n = Math.round(Number(r) || 0);
-    return "★".repeat(Math.max(0, n));
+    return "★".repeat(Math.max(0, Math.min(5, n)));
+  }
+
+  function yearOf(releaseDate){
+    if (!releaseDate) return "";
+    return String(releaseDate).substring(0,4);
   }
 
   async function loadMovies(){
@@ -304,26 +367,116 @@
 
       if(!res.ok){
         const txt = await res.text();
-        throw new Error(`Supabase REST failed (${res.status}).\n\n${txt}\n\nFix:\n- Make sure your key is valid for REST.\n- RLS should be disabled OR allow anon read.\n- The view name must be movies_gui.`);
+        throw new Error(`Supabase REST failed (${res.status}).\n\n${txt}\n\nFix:\n- Key must work for REST (anon public key is best).\n- RLS should be disabled OR allow anon read.\n- View name must be movies_gui.`);
       }
 
-      movies = await res.json();
-      if(!Array.isArray(movies) || movies.length === 0){
+      const data = await res.json();
+      if(!Array.isArray(data) || data.length === 0){
         throw new Error("No rows returned from movies_gui. Check your view + data.");
       }
 
-      // Optional: sort by rating desc at start
-      movies.sort((a,b) => Number(b.rating||0) - Number(a.rating||0));
+      allMovies = data;
 
-      showSlide();
-      buildTable();
+      buildFilterOptions(allMovies);
+      applyFilters(); // sets movies + renders
     }catch(e){
       showError(e.message);
+      document.getElementById("countText").textContent = "Failed to load";
     }
   }
 
+  function buildFilterOptions(list){
+    // Genres set
+    const genreSet = new Set();
+    const yearSet = new Set();
+
+    list.forEach(m => {
+      const y = yearOf(m.release_date);
+      if (y) yearSet.add(y);
+
+      const gs = (m.genres || "")
+        .split(",")
+        .map(x => x.trim())
+        .filter(Boolean);
+      gs.forEach(g => genreSet.add(g));
+    });
+
+    const genreSelect = document.getElementById("genreSelect");
+    const yearSelect = document.getElementById("yearSelect");
+
+    genreSelect.innerHTML =
+      `<option value="">All Genres</option>` +
+      Array.from(genreSet).sort().map(g => `<option value="${g}">${g}</option>`).join("");
+
+    const years = Array.from(yearSet).sort((a,b)=>Number(b)-Number(a));
+    yearSelect.innerHTML =
+      `<option value="">All Years</option>` +
+      years.map(y => `<option value="${y}">${y}</option>`).join("");
+  }
+
+  function applyFilters(){
+    const q = document.getElementById("searchInput").value.trim().toLowerCase();
+    const genre = document.getElementById("genreSelect").value;
+    const year = document.getElementById("yearSelect").value;
+    const sort = document.getElementById("sortSelect").value;
+
+    movies = allMovies.filter(m => {
+      const hay = [m.title, m.genres, m.description]
+        .map(x => (x || "").toString().toLowerCase())
+        .join(" ");
+
+      if (q && !hay.includes(q)) return false;
+
+      if (genre){
+        const gs = (m.genres || "").split(",").map(x => x.trim());
+        if (!gs.includes(genre)) return false;
+      }
+
+      if (year){
+        if (yearOf(m.release_date) !== year) return false;
+      }
+
+      return true;
+    });
+
+    // sort
+    movies.sort((a,b) => {
+      const ar = Number(a.rating ?? -999);
+      const br = Number(b.rating ?? -999);
+      const ad = a.release_date ? new Date(a.release_date).getTime() : 0;
+      const bd = b.release_date ? new Date(b.release_date).getTime() : 0;
+      const at = (a.title || "").toLowerCase();
+      const bt = (b.title || "").toLowerCase();
+
+      switch(sort){
+        case "rating_desc": return br - ar;
+        case "rating_asc": return ar - br;
+        case "date_desc": return bd - ad;
+        case "date_asc": return ad - bd;
+        case "title_desc": return bt.localeCompare(at);
+        case "title_asc":
+        default: return at.localeCompare(bt);
+      }
+    });
+
+    document.getElementById("countText").textContent = `${movies.length} movies shown`;
+
+    index = 0;
+    showSlide();
+    buildTable();
+  }
+
   function showSlide(){
-    if(!movies.length) return;
+    if(!movies.length){
+      document.getElementById("title").textContent = "No movies match your filters";
+      document.getElementById("meta").textContent = "";
+      document.getElementById("rating").textContent = "";
+      document.getElementById("description").textContent = "";
+      document.getElementById("poster").src = "";
+      document.getElementById("hero").style.backgroundImage =
+        "linear-gradient(to right, rgba(0,0,0,.92), rgba(0,0,0,.25))";
+      return;
+    }
 
     const m = movies[index];
     const year = m.release_date ? String(m.release_date).substring(0,4) : "—";
@@ -336,7 +489,6 @@
 
     document.getElementById("poster").src = img;
 
-    // Set hero background image (use poster too)
     document.getElementById("hero").style.backgroundImage =
       `linear-gradient(to right, rgba(0,0,0,.92), rgba(0,0,0,.25)), url('${img}')`;
   }
@@ -351,19 +503,6 @@
     if(!movies.length) return;
     index = (index - 1 + movies.length) % movies.length;
     showSlide();
-  }
-
-  function toggleAuto(){
-    auto = !auto;
-    const btn = document.getElementById("autoBtn");
-    btn.textContent = auto ? "⏸ Pause" : "▶ Auto";
-
-    if(auto){
-      timer = setInterval(next, 3500);
-    }else{
-      clearInterval(timer);
-      timer = null;
-    }
   }
 
   function buildTable(){
@@ -385,6 +524,12 @@
 
     document.getElementById("movies").innerHTML = html;
   }
+
+  // Hook up filters
+  document.getElementById("searchInput").addEventListener("input", applyFilters);
+  document.getElementById("genreSelect").addEventListener("change", applyFilters);
+  document.getElementById("yearSelect").addEventListener("change", applyFilters);
+  document.getElementById("sortSelect").addEventListener("change", applyFilters);
 
   loadMovies();
 </script>
