@@ -16,8 +16,7 @@
   /* NAVBAR */
   .navbar{
     position:fixed;
-    top:0;
-    left:0;
+    top:0; left:0;
     width:100%;
     display:flex;
     justify-content:space-between;
@@ -34,11 +33,7 @@
     letter-spacing:2px;
     color:#e50914;
   }
-  .nav-right{
-    display:flex;
-    align-items:center;
-    gap:14px;
-  }
+  .nav-right{ display:flex; align-items:center; gap:14px; }
   .lang-btn{
     background:transparent;
     border:1px solid #aaa;
@@ -71,7 +66,7 @@
     height:82vh;
     display:flex;
     align-items:center;
-    padding:110px 60px 60px; /* room for navbar */
+    padding:110px 60px 60px;
     background-size:cover;
     background-position:center;
     transition:all .5s ease;
@@ -109,7 +104,6 @@
     margin-bottom:18px;
     font-size:15px;
   }
-
   .hero-poster{
     position:absolute;
     right:70px;
@@ -143,9 +137,7 @@
     background:rgba(255,255,255,.12);
     border:1px solid rgba(255,255,255,.18);
   }
-  .btn.secondary:hover{
-    background:rgba(255,255,255,.18);
-  }
+  .btn.secondary:hover{ background:rgba(255,255,255,.18); }
 
   /* FILTER BAR */
   .filter-bar{
@@ -183,6 +175,7 @@
     opacity:.8;
     font-size:13px;
     padding:0 6px;
+    white-space:nowrap;
   }
 
   /* TABLE */
@@ -195,9 +188,19 @@
     margin:0 0 18px;
     font-size:24px;
   }
+
+  /* ✅ Mobile-friendly table container */
+  .table-wrap{
+    width:100%;
+    overflow-x:auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius:12px;
+  }
   table{
     width:100%;
+    min-width: 950px; /* keeps columns readable, scroll on mobile */
     border-collapse:collapse;
+    background:#fff;
   }
   th{
     background:#111;
@@ -235,11 +238,11 @@
   }
 
   @media (max-width: 900px){
-    .hero{ padding:110px 24px 50px; }
+    .hero{ padding:110px 18px 46px; height:78vh; }
     .hero-poster{ display:none; }
-    .navbar{ padding:16px 20px; }
-    .filter-bar{ padding:0 20px 24px; }
-    .table-section{ padding:30px 20px 50px; }
+    .navbar{ padding:14px 16px; }
+    .filter-bar{ padding:0 16px 22px; margin-top:-22px; }
+    .table-section{ padding:26px 16px 44px; }
     .count{ margin-left:0; width:100%; }
     .filter-card input, .filter-card select{ min-width: 100%; }
   }
@@ -270,7 +273,6 @@
 
     <div class="controls">
       <button class="btn secondary" onclick="prev()">◀ Prev</button>
-      <!-- ✅ Auto button REMOVED -->
       <button class="btn secondary" onclick="next()">Next ▶</button>
     </div>
   </div>
@@ -278,7 +280,6 @@
   <img id="poster" class="hero-poster" alt="Movie poster" />
 </div>
 
-<!-- ✅ FILTERS / SEARCH -->
 <div class="filter-bar">
   <div class="filter-card">
     <input id="searchInput" type="text" placeholder="Search title, genre, description…" />
@@ -302,39 +303,42 @@
 
 <div class="table-section">
   <h2>All Movies</h2>
-  <table>
-    <tr>
-      <th>Poster</th>
-      <th>Title</th>
-      <th>Release</th>
-      <th>Genres</th>
-      <th>Rating</th>
-      <th>Description</th>
-    </tr>
-    <tbody id="movies"></tbody>
-  </table>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Poster</th>
+          <th>Title</th>
+          <th>Release</th>
+          <th>Genres</th>
+          <th>Rating</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody id="movies"></tbody>
+    </table>
+  </div>
 </div>
 
 <script>
   const SUPABASE_URL = "https://njacnizuppgxlcroosva.supabase.co";
-  const SUPABASE_KEY = "sb_publishable_pmSNF4okxKfphB1Rr19Q0w_n550JOla"; // your key
+  const SUPABASE_KEY = "sb_publishable_pmSNF4okxKfphB1Rr19Q0w_n550JOla";
   const VIEW = "movies_gui";
-
   const TMDB_IMG_BASE = "https://image.tmdb.org/t/p/w500";
 
   let allMovies = [];
-  let movies = [];      // filtered list used by slideshow + table
+  let movies = [];
   let index = 0;
 
+  const $ = (id) => document.getElementById(id);
+
   function showError(msg){
-    const box = document.getElementById("errorBox");
-    box.style.display = "block";
-    box.textContent = msg;
+    $("errorBox").style.display = "block";
+    $("errorBox").textContent = msg;
   }
   function clearError(){
-    const box = document.getElementById("errorBox");
-    box.style.display = "none";
-    box.textContent = "";
+    $("errorBox").style.display = "none";
+    $("errorBox").textContent = "";
   }
 
   function posterUrl(path){
@@ -355,8 +359,18 @@
     return String(releaseDate).substring(0,4);
   }
 
+  // ✅ robust: handles "Action, Drama" strings OR nulls
+  function splitGenres(genresStr){
+    return (genresStr || "")
+      .split(",")
+      .map(x => x.trim())
+      .filter(Boolean);
+  }
+
   async function loadMovies(){
     clearError();
+    $("countText").textContent = "Loading…";
+
     try{
       const res = await fetch(`${SUPABASE_URL}/rest/v1/${VIEW}?select=*`, {
         headers:{
@@ -367,26 +381,30 @@
 
       if(!res.ok){
         const txt = await res.text();
-        throw new Error(`Supabase REST failed (${res.status}).\n\n${txt}\n\nFix:\n- Key must work for REST (anon public key is best).\n- RLS should be disabled OR allow anon read.\n- View name must be movies_gui.`);
+        throw new Error(
+          `Supabase REST failed (${res.status}).\n\n${txt}\n\n` +
+          `Most common fix:\n- Turn OFF RLS on the view or underlying tables\n- OR add a SELECT policy for anon/public access.`
+        );
       }
 
       const data = await res.json();
+
       if(!Array.isArray(data) || data.length === 0){
-        throw new Error("No rows returned from movies_gui. Check your view + data.");
+        throw new Error("No rows returned from movies_gui. Your view may be empty or blocked by RLS.");
       }
 
       allMovies = data;
 
       buildFilterOptions(allMovies);
-      applyFilters(); // sets movies + renders
+      applyFilters(); // set movies + render slideshow/table
+
     }catch(e){
       showError(e.message);
-      document.getElementById("countText").textContent = "Failed to load";
+      $("countText").textContent = "Failed to load";
     }
   }
 
   function buildFilterOptions(list){
-    // Genres set
     const genreSet = new Set();
     const yearSet = new Set();
 
@@ -394,31 +412,38 @@
       const y = yearOf(m.release_date);
       if (y) yearSet.add(y);
 
-      const gs = (m.genres || "")
-        .split(",")
-        .map(x => x.trim())
-        .filter(Boolean);
-      gs.forEach(g => genreSet.add(g));
+      splitGenres(m.genres).forEach(g => genreSet.add(g));
     });
 
-    const genreSelect = document.getElementById("genreSelect");
-    const yearSelect = document.getElementById("yearSelect");
-
+    // ✅ populate genres
+    const genreSelect = $("genreSelect");
+    const genres = Array.from(genreSet).sort((a,b)=>a.localeCompare(b));
     genreSelect.innerHTML =
       `<option value="">All Genres</option>` +
-      Array.from(genreSet).sort().map(g => `<option value="${g}">${g}</option>`).join("");
+      genres.map(g => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join("");
 
+    // ✅ populate years (desc)
+    const yearSelect = $("yearSelect");
     const years = Array.from(yearSet).sort((a,b)=>Number(b)-Number(a));
     yearSelect.innerHTML =
       `<option value="">All Years</option>` +
       years.map(y => `<option value="${y}">${y}</option>`).join("");
   }
 
+  function escapeHtml(str){
+    return String(str)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
   function applyFilters(){
-    const q = document.getElementById("searchInput").value.trim().toLowerCase();
-    const genre = document.getElementById("genreSelect").value;
-    const year = document.getElementById("yearSelect").value;
-    const sort = document.getElementById("sortSelect").value;
+    const q = $("searchInput").value.trim().toLowerCase();
+    const genre = $("genreSelect").value;
+    const year = $("yearSelect").value;
+    const sort = $("sortSelect").value;
 
     movies = allMovies.filter(m => {
       const hay = [m.title, m.genres, m.description]
@@ -428,7 +453,7 @@
       if (q && !hay.includes(q)) return false;
 
       if (genre){
-        const gs = (m.genres || "").split(",").map(x => x.trim());
+        const gs = splitGenres(m.genres);
         if (!gs.includes(genre)) return false;
       }
 
@@ -439,7 +464,6 @@
       return true;
     });
 
-    // sort
     movies.sort((a,b) => {
       const ar = Number(a.rating ?? -999);
       const br = Number(b.rating ?? -999);
@@ -459,7 +483,7 @@
       }
     });
 
-    document.getElementById("countText").textContent = `${movies.length} movies shown`;
+    $("countText").textContent = `${movies.length} movies shown`;
 
     index = 0;
     showSlide();
@@ -468,29 +492,35 @@
 
   function showSlide(){
     if(!movies.length){
-      document.getElementById("title").textContent = "No movies match your filters";
-      document.getElementById("meta").textContent = "";
-      document.getElementById("rating").textContent = "";
-      document.getElementById("description").textContent = "";
-      document.getElementById("poster").src = "";
-      document.getElementById("hero").style.backgroundImage =
+      $("title").textContent = "No movies match your filters";
+      $("meta").textContent = "";
+      $("rating").textContent = "";
+      $("description").textContent = "";
+      $("poster").src = "";
+      $("hero").style.backgroundImage =
         "linear-gradient(to right, rgba(0,0,0,.92), rgba(0,0,0,.25))";
       return;
     }
 
     const m = movies[index];
-    const year = m.release_date ? String(m.release_date).substring(0,4) : "—";
+    const year = yearOf(m.release_date) || "—";
     const img = posterUrl(m.poster_path);
 
-    document.getElementById("title").textContent = m.title || "—";
-    document.getElementById("meta").textContent = `${year} • ${m.genres || "—"}`;
-    document.getElementById("rating").textContent = `${stars(m.rating)} (${Number(m.rating||0).toFixed(1)})`;
-    document.getElementById("description").textContent = m.description || "—";
+    $("title").textContent = m.title || "—";
+    $("meta").textContent = `${year} • ${m.genres || "—"}`;
 
-    document.getElementById("poster").src = img;
+    const r = Number(m.rating);
+    $("rating").textContent = Number.isFinite(r)
+      ? `${stars(r)} (${r.toFixed(1)})`
+      : `Rating: —`;
 
-    document.getElementById("hero").style.backgroundImage =
-      `linear-gradient(to right, rgba(0,0,0,.92), rgba(0,0,0,.25)), url('${img}')`;
+    $("description").textContent = m.description || "—";
+
+    $("poster").src = img;
+    $("hero").style.backgroundImage =
+      img
+      ? `linear-gradient(to right, rgba(0,0,0,.92), rgba(0,0,0,.25)), url('${img}')`
+      : `linear-gradient(to right, rgba(0,0,0,.92), rgba(0,0,0,.25))`;
   }
 
   function next(){
@@ -498,7 +528,6 @@
     index = (index + 1) % movies.length;
     showSlide();
   }
-
   function prev(){
     if(!movies.length) return;
     index = (index - 1 + movies.length) % movies.length;
@@ -510,26 +539,27 @@
 
     movies.forEach(m => {
       const img = posterUrl(m.poster_path);
+      const r = Number(m.rating);
       html += `
         <tr>
-          <td><img class="poster-small" src="${img}" alt="${m.title || "poster"}"></td>
-          <td>${m.title || "—"}</td>
-          <td>${m.release_date || "—"}</td>
-          <td>${m.genres || "—"}</td>
-          <td>${Number(m.rating || 0).toFixed(1)}</td>
-          <td>${m.description || "—"}</td>
+          <td><img class="poster-small" src="${img}" alt="${escapeHtml(m.title || "poster")}"></td>
+          <td>${escapeHtml(m.title || "—")}</td>
+          <td>${escapeHtml(m.release_date || "—")}</td>
+          <td>${escapeHtml(m.genres || "—")}</td>
+          <td>${Number.isFinite(r) ? r.toFixed(1) : "—"}</td>
+          <td>${escapeHtml(m.description || "—")}</td>
         </tr>
       `;
     });
 
-    document.getElementById("movies").innerHTML = html;
+    $("movies").innerHTML = html;
   }
 
-  // Hook up filters
-  document.getElementById("searchInput").addEventListener("input", applyFilters);
-  document.getElementById("genreSelect").addEventListener("change", applyFilters);
-  document.getElementById("yearSelect").addEventListener("change", applyFilters);
-  document.getElementById("sortSelect").addEventListener("change", applyFilters);
+  // events
+  $("searchInput").addEventListener("input", applyFilters);
+  $("genreSelect").addEventListener("change", applyFilters);
+  $("yearSelect").addEventListener("change", applyFilters);
+  $("sortSelect").addEventListener("change", applyFilters);
 
   loadMovies();
 </script>
